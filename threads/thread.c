@@ -28,6 +28,9 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* Alarm clock을 구현하기 위한 sleep_list */
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -79,6 +82,11 @@ static tid_t allocate_tid (void);
 // setup temporal gdt first.
 static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
 
+// next_tick_to_awake 초기화
+static int64_t next_tick_to_awake;
+
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -109,12 +117,60 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
+	list_init (&sleep_list);	// sleep_list 초기화
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
+}
+
+// 과제 1. alarm clock
+void thread_sleep(int64_t ticks) {
+	struct thread *curr = thread_current ();
+	ASSERT(curr != idle_thread);
+
+	enum intr_level old_level;
+
+	old_level = intr_disable();
+	curr->wakeup_tick = ticks;
+
+	if (curr != idle_thread)
+		list_push_back (&sleep_list, &curr->elem);
+	// list_insert_ordered(&sleep_list, &curr->elem, thread_wakeup_tick_compare, NULL);
+	
+	update_next_tick_to_awake(ticks);
+	do_schedule(THREAD_BLOCKED);
+	intr_set_level(old_level);	// 인터럽트 복구
+}
+
+// 과제 1. alarm clock
+void thread_awake(int64_t ticks) {
+	next_tick_to_awake = INT64_MAX;
+	struct list_elem *curr_elem = list_begin(&sleep_list);
+	struct thread *curr_thread;
+	while (curr_elem != list_end(&sleep_list)) {
+		curr_thread = list_entry(curr_elem, struct thread, elem);
+		int64_t wakeup_tick = curr_thread->wakeup_tick;
+
+		if (ticks < wakeup_tick) 
+			// break;
+			update_next_tick_to_awake(wakeup_tick);
+			curr_elem = list_next(curr_elem);
+			continue;
+		
+		curr_elem = list_remove(curr_elem);
+		thread_unblock(curr_thread);
+	}
+}
+
+void update_next_tick_to_awake(int64_t ticks) {
+	next_tick_to_awake = MIN(next_tick_to_awake, ticks);
+}
+
+int64_t get_next_tick_to_awake(void) {
+	return next_tick_to_awake;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.

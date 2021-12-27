@@ -119,6 +119,8 @@ main (void) {
 	printf ("Boot complete.\n");
 
 	/* Run actions specified on kernel command line. */
+	// 커널 명령줄에서 지정된 작업을 실행합니다.
+	// 프로세스 실행
 	run_actions (argv);
 
 	/* Finish up. */
@@ -235,6 +237,8 @@ parse_options (char **argv) {
 }
 
 /* Runs the task specified in ARGV[1]. */
+// ARGV[1]에 지정된 태스크를 실행합니다.
+// 프로세스 생성 함수
 static void
 run_task (char **argv) {
 	const char *task = argv[1];
@@ -265,7 +269,7 @@ run_actions (char **argv) {
 
 	/* Table of supported actions. */
 	static const struct action actions[] = {
-		{"run", 2, run_task},
+		{"run", 2, run_task},		// 프로세스 생성 함수 호출
 #ifdef FILESYS
 		{"ls", 1, fsutil_ls},
 		{"cat", 2, fsutil_cat},
