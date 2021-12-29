@@ -3,17 +3,23 @@
 # 돌리고 싶은 테스트의 경우 주석 처리를 해제하세요.
 
 declare -a tests=(
-    # 1. Alarm clock test
-    # "alarm-single" 
-    # "alarm-multiple"
-    # "alarm-simultaneous"
-    # "alarm-zero"
-    # "alarm-negative"
+    # A. alarm clock 과제 테스트용
+    "alarm-single"
+    "alarm-multiple"
+    "alarm-simultaneous"
+    "alarm-zero"
+    "alarm-negative"
     
-    #2. Basic priority scheduling
+    # B. priority scheduling 과제 테스트용(priority 1)
     "alarm-priority"
     "priority-fifo"
     "priority-preempt"
+    
+    # C. priority-synchronization 과제 테스트용(priority 2)
+    "priority-sema"
+    "priority-condvar"
+    
+    # D. Priority Inversion 과제 테스트용(priority 3)
     # "priority-change"
     # "priority-donate-one"
     # "priority-donate-multiple"
@@ -22,9 +28,8 @@ declare -a tests=(
     # "priority-donate-sema"
     # "priority-donate-lower"
     # "priority-donate-chain"
-    # "priority-sema"
-    # "priority-condvar"
     
+    # D. MLFQS 과제 테스트용
     # "mlfqs-load-1"
     # "mlfqs-load-60"
     # "mlfqs-load-avg"
@@ -37,7 +42,7 @@ declare -a tests=(
 )
 
 make clean
-cd threads
+source ../activate
 make
 cd build
 
@@ -46,6 +51,8 @@ suffix=".result"
 VB=0 # 이 값을 1로 하면 테스트 결과와 더불어 테스트 중간에 찍히는 출력값도 볼 수 있습니다.
 
 for test in "${tests[@]}"; do
+    echo "----------------------------------------------------------"
+    echo "$test 시작합니다."
     if [ $VB -eq 0 ];then
         make "${directory}$test${suffix}"
     else
