@@ -146,10 +146,16 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
-/* alarm-clock re-implementation 용도 */
 void thread_sleep(int64_t ticks); /* 실행 중인 thread를 슬립으로 만듦 */
 void thread_awake(int64_t ticks); /* sleep_list에서 꺠워야 할 thread를 깨움 */
 void update_next_tick_to_awake(int64_t ticks); /* 최소 틱을 가진 thread 저장 */
 int64_t get_next_tick_to_awake(void); /* thread.c의 next_tick_to_awake 반환 */
+
+
+/* If the newly created thread has a higher priority than the running thread,
+   then the current running thread yields.
+ */
+void test_max_priority(void);
+bool cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 #endif /* threads/thread.h */
