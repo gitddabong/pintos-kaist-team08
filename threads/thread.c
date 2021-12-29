@@ -218,6 +218,8 @@ thread_create (const char *name, int priority,
 	/* Add to run queue. */
 	thread_unblock (t);
 
+	test_max_priority();
+
 	return tid;
 }
 
@@ -251,7 +253,7 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	list_insert_ordered (&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -314,7 +316,7 @@ thread_yield (void) {
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+		list_insert_ordered (&ready_list, &curr->elem, cmp_priority, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -323,6 +325,8 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+
+	test_max_priority();	
 }
 
 /* Returns the current thread's priority. */
@@ -649,4 +653,27 @@ void update_next_tick_to_awake(int64_t ticks)
 int64_t get_next_tick_to_awake(void)
 {
 	return next_tick_to_awake;
+}
+
+void test_max_priority(void)
+{
+	struct thread *curr_running = running_thread();
+	struct thread *top_thread;
+
+	if (list_empty(&ready_list))
+		return;
+	
+	top_thread = list_entry(list_begin(&ready_list), struct thread, elem);
+
+	if (curr_running->priority < top_thread->priority)
+		thread_yield();
+}
+
+/* When used with list_insert_ordered function in list.c, it helps to sort in a descending order */
+bool cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	struct thread *thread_a = list_entry(a, struct thread, elem);
+	struct thread *thread_b = list_entry(b, struct thread, elem);
+
+	return thread_a->priority > thread_b->priority ? 1 : 0;
 }

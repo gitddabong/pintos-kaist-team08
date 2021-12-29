@@ -4,15 +4,16 @@
 
 declare -a tests=(
     # 1. Alarm clock test
-    "alarm-single" 
-    "alarm-multiple"
-    "alarm-simultaneous"
-    "alarm-zero"
-    "alarm-negative"
+    # "alarm-single" 
+    # "alarm-multiple"
+    # "alarm-simultaneous"
+    # "alarm-zero"
+    # "alarm-negative"
     
-    # "alarm-priority"
-    # "priority-fifo"
-    # "priority-preempt"
+    #2. Basic priority scheduling
+    "alarm-priority"
+    "priority-fifo"
+    "priority-preempt"
     # "priority-change"
     # "priority-donate-one"
     # "priority-donate-multiple"
