@@ -86,6 +86,7 @@ static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
 static int64_t next_tick_to_awake;
 
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#define MAX(a,b) (((a) > (b)) ? (a) : (b))
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -154,14 +155,15 @@ void thread_awake(int64_t ticks) {
 		curr_thread = list_entry(curr_elem, struct thread, elem);
 		int64_t wakeup_tick = curr_thread->wakeup_tick;
 
-		if (ticks < wakeup_tick) 
+		if (ticks < wakeup_tick) {
 			// break;
 			update_next_tick_to_awake(wakeup_tick);
 			curr_elem = list_next(curr_elem);
-			continue;
-		
-		curr_elem = list_remove(curr_elem);
-		thread_unblock(curr_thread);
+		}
+		else {
+			curr_elem = list_remove(&curr_thread->elem);
+			thread_unblock(curr_thread);
+		}
 	}
 }
 
@@ -173,6 +175,20 @@ int64_t get_next_tick_to_awake(void) {
 	return next_tick_to_awake;
 }
 
+
+// 과제 2. Priority Scheduler
+bool cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+	struct thread *a_thread = list_entry(a, struct thread, elem);
+	struct thread *b_thread = list_entry(b, struct thread, elem);
+
+	if (a_thread->priority > b_thread->priority) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
 void
@@ -180,7 +196,7 @@ thread_start (void) {
 	/* Create the idle thread. */
 	struct semaphore idle_started;
 	sema_init (&idle_started, 0);
-	thread_create ("idle", PRI_MIN, idle, &idle_started);
+	thread_create ("idle", PRI_DEFAULT, idle, &idle_started);		// 과제 2. 우선순위 수정
 
 	/* Start preemptive thread scheduling. */
 	intr_enable ();
@@ -241,11 +257,13 @@ thread_create (const char *name, int priority,
 	ASSERT (function != NULL);
 
 	/* Allocate thread. */
+	// 스레드 할당
 	t = palloc_get_page (PAL_ZERO);
 	if (t == NULL)
-		return TID_ERROR;
+		return TID_ERROR;	// 할당 실패할 경우 TID ERROR
 
 	/* Initialize thread. */
+	// 스레드 초기화
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
 
@@ -262,6 +280,13 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);
+
+	/* 현재 실행 중인 thread와 우선순위 비교, 새 스레드 우선순위가 높다면 thread_yield()로 양보 */
+	struct thread *curr = thread_current();
+	if (curr->priority < t->priority) {
+		// list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
+		thread_yield();
+	}
 
 	return tid;
 }
@@ -296,7 +321,9 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	// list_push_back (&ready_list, &t->elem);
+	// 과제 2에 맞게 변경
+	list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -358,16 +385,36 @@ thread_yield (void) {
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
-	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+	if (curr != idle_thread) {
+		// list_push_back (&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &curr->elem, &cmp_priority, NULL);
+	}
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
+// 이 함수로 인해 스레드의 우선순위가 변경되면 우선순위에 따라 CPU를 양도해야 함
+// 이 함수로 바뀐 스레드의 우선순위가 리스트의 top에 있는 우선순위보다 낮아지면,
+// CPU를 이 스레드가 갖고 있으면 안되니까. 양도를 해 주는 것
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	
+	test_max_priority();
+}
+
+/* ready_list에서 우선 순위가 가장 높은 쓰레드와 현재 쓰레드의 우선 순위를 비교 */
+void test_max_priority (void) {
+	if (list_empty(&ready_list))
+		return;
+
+	// 정렬된 ready_list의 맨 앞의 원소의 우선순위가 가장 높은 우선 순위
+	struct thread *mp_thread = list_entry(list_begin(&ready_list), struct thread, elem);
+	struct thread *curr_thread = thread_current();
+
+	if (mp_thread->priority > curr_thread->priority)
+		thread_yield();
 }
 
 /* Returns the current thread's priority. */

@@ -3,16 +3,16 @@
 # 돌리고 싶은 테스트의 경우 주석 처리를 해제하세요.
 
 declare -a tests=(
-    "alarm-single" 
-    "alarm-multiple"
-    "alarm-simultaneous"
-    "alarm-zero"
-    "alarm-negative"
-    "alarm-priority"
+    # "alarm-single" 
+    # "alarm-multiple"
+    # "alarm-simultaneous"
+    # "alarm-zero"
+    # "alarm-negative"
+    # "alarm-priority"
 
-    # "priority-fifo"
-    # "priority-preempt"
-    # "priority-change"
+    "priority-fifo"
+    "priority-preempt"
+    "priority-change"   
     # "priority-donate-one"
     # "priority-donate-multiple"
     # "priority-donate-multiple2"
@@ -20,8 +20,8 @@ declare -a tests=(
     # "priority-donate-sema"
     # "priority-donate-lower"
     # "priority-donate-chain"
-    # "priority-sema"
-    # "priority-condvar"
+    "priority-sema"
+    "priority-condvar"
     
     # "mlfqs-load-1"
     # "mlfqs-load-60"
