@@ -1,2 +1,3 @@
 # ignore build related files
 threads/build/
+.vscode

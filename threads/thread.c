@@ -28,6 +28,14 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* List of processes in BLOCKED state, that is, processes
+   that must be awoken in order to go into ready_list */
+static struct list sleep_list;
+
+/* Minimum out of all wakeup_tick values of threads waiting
+   in sleep_list */
+static int64_t next_tick_to_awake;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -47,7 +55,7 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
-static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+static long long thread_ticks;   /* # of timer ticks since last yield. */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -109,7 +117,10 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
-
+	
+	list_init (&sleep_list);
+	next_tick_to_awake = INT64_MAX;
+	
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -587,4 +598,55 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+void
+thread_sleep(int64_t ticks)
+{
+	struct thread *curr = thread_current ();
+	enum intr_level old_level;
+
+	ASSERT (!intr_context ());
+
+	old_level = intr_disable ();
+	curr->wakeup_tick = ticks;
+	update_next_tick_to_awake(ticks);
+	if (curr != idle_thread)
+		list_push_back (&sleep_list, &curr->elem);
+	do_schedule (THREAD_BLOCKED);
+	intr_set_level (old_level);
+}
+
+void 
+thread_awake(int64_t ticks)
+{
+	struct thread *t;
+	struct list_elem *curr = list_begin(&sleep_list);
+	struct list_elem *next;
+	struct list_elem *tail = list_end(&sleep_list);
+	
+	while (curr != tail) {
+		t = list_entry(curr, struct thread, elem);
+		next = list_next(curr);
+		if (t->wakeup_tick <= ticks) {
+			list_remove(curr);
+			thread_unblock(t);
+		}
+		else {
+			update_next_tick_to_awake(t->wakeup_tick);
+		}
+		curr = next;
+	}
+}
+
+void update_next_tick_to_awake(int64_t ticks)
+{
+	if (ticks < next_tick_to_awake) {
+		next_tick_to_awake = ticks;
+	}
+}
+
+int64_t get_next_tick_to_awake(void)
+{
+	return next_tick_to_awake;
 }
